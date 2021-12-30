@@ -19,7 +19,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Eurovision Data Scraper')
     parser.add_argument('--start', type=int, default=1956,
                         help='Start year range of the Eurovision Song Contest')
-    parser.add_argument('--end', type=int, default=2020,
+    parser.add_argument('--end', type=int, default=2021,
                         help='End year range of the Eurovision Song Contest')
     args = parser.parse_args()
 
@@ -32,7 +32,11 @@ if __name__ == "__main__":
         else:
             rounds = ['final', 'semi-final-1', 'semi-final-2']
 
-        contest = get_contest(y, rounds)
-        to_csv(contest)
+        if y != 2020:
+            contest = get_contest(y, rounds)
+            to_csv(contest)
+        else:
+            print("Skipping year 2020 as contest was cancelled. No votes to tabulate")
+            
     
     scraper.driver.quit()
