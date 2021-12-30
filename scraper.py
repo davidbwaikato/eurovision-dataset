@@ -15,9 +15,29 @@ class Scraper():
     def __init__(self):
         try:
             options = webdriver.ChromeOptions()
-            options.add_argument("headless")
-            options.add_argument("no-sandbox")
-            options.add_argument("disable-dev-shm-usage")
+            # The following is the original github project code, but as docker image installs
+            #   latest version of chrome-driver, it was found to be insufficient and caused
+            #   scraper.py to hang for a long time, and then eventually timeout, having never
+            #   downloaded anything
+            
+            #options.add_argument("headless")
+            #options.add_argument("no-sandbox")
+            #options.add_argument("disable-dev-shm-usage")
+
+            # Based on:
+            #   https://stackoverflow.com/questions/48450594/selenium-timed-out-receiving-message-from-renderer
+            #
+            # ChromeDriver is just AWFUL because every version or two it breaks unless you pass cryptic arguments
+            # AGRESSIVE: options.setPageLoadStrategy(PageLoadStrategy.NONE); // https://www.skptricks.com/2018/08/timed-out-receiving-message-from-renderer-selenium.html
+            options.add_argument("start-maximized");                   # https://stackoverflow.com/a/26283818/1689770
+            options.add_argument("enable-automation");                 # https://stackoverflow.com/a/43840128/1689770
+            options.add_argument("--headless");                        # only if you are ACTUALLY running headless
+            options.add_argument("--no-sandbox");                      # https://stackoverflow.com/a/50725918/1689770
+            options.add_argument("--disable-infobars");                # https://stackoverflow.com/a/43840128/1689770
+            options.add_argument("--disable-dev-shm-usage");           # https://stackoverflow.com/a/50725918/1689770
+            options.add_argument("--disable-browser-side-navigation"); # https://stackoverflow.com/a/49123152/1689770
+            options.add_argument("--disable-gpu");                     # https://stackoverflow.com/questions/51959986/how-to-solve-selenium-chromedriver-timed-out-
+            
             self.driver = webdriver.Chrome(chrome_options=options)
             return
         except Exception as e:
@@ -71,7 +91,7 @@ class Scraper():
         voting_grid = self.soup.find('table', {'class': 'scoreboard_table'})
         with open("output1.html", "w") as file:
             file.write(str(self.soup))
-        exit()
+
         if voting_grid is None:
             return votes_dict
 
@@ -84,7 +104,15 @@ class Scraper():
             btn.send_keys(keys.Keys.SPACE)
 
             soup = BeautifulSoup(self.driver.page_source, features='html.parser')
-            voting_grid = soup.find('div', {'id': 'voting_grid'})
+
+            # It looks like the eurovisionworld.com website has made some HTML syntax changes
+            #   to their site (based on a comparison of the current pages and those from 2 years ago
+            #   accessed via the WayBack Machine on archive.org
+            #
+            # There is nolonger a 'voting_grid' id in the HTML for find() to latch on to
+            
+            # voting_grid = soup.find('div', {'id': 'voting_grid'})
+            voting_grid = self.soup.find('table', {'class': 'scoreboard_table'})
 
         if len(voting_grid.text) > 0:
 
@@ -208,6 +236,8 @@ class Scraper():
         else:
             url = 'https://eurovisionworld.com/eurovision/{}/{}'.format(contest.year, contest_round)
 
+        print("Scraping year: " + url)
+        
         self.driver.get(url)
         self.soup = BeautifulSoup(self.driver.page_source, features='html.parser')
         voting_table = self.soup.find('div', {'id': 'voting_table'})
@@ -250,7 +280,7 @@ class Scraper():
             # Get contestant's page url
             url = 'https://eurovisionworld.com' + contestant.page_url
 
-            print(url)
+            print("Scraping misc:" + url)
 
             self.driver.get(url)
             soup = BeautifulSoup(self.driver.page_source, features='html.parser')
