@@ -1,3 +1,4 @@
 pandas
 selenium
 bs4
+youtube_dl
