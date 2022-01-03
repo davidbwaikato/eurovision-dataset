@@ -236,7 +236,7 @@ class Scraper():
         else:
             url = 'https://eurovisionworld.com/eurovision/{}/{}'.format(contest.year, contest_round)
 
-        print("Scraping year: " + url)
+        print("  Scraping year: " + url)
         
         self.driver.get(url)
         self.soup = BeautifulSoup(self.driver.page_source, features='html.parser')
@@ -280,7 +280,7 @@ class Scraper():
             # Get contestant's page url
             url = 'https://eurovisionworld.com' + contestant.page_url
 
-            print("Scraping misc:" + url)
+            print("  Scraping misc:" + url)
 
             self.driver.get(url)
             soup = BeautifulSoup(self.driver.page_source, features='html.parser')
