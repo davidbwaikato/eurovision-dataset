@@ -1,6 +1,12 @@
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.common import keys
+
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.by import By
+from selenium.common.exceptions import TimeoutException
+
 import re
 import time
 from collections import defaultdict
@@ -225,7 +231,7 @@ class Scraper():
             else:
                 c.place_contest = place
 
-            print(contest.year, c.country.name, contest_round if qualified else f"{contest_round} Non qualified")
+            print("  ", contest.year, c.country.name, contest_round if qualified else f"{contest_round} Non qualified")
         return contest
 
     def scrape_year(self, contest, contest_round):
@@ -239,11 +245,24 @@ class Scraper():
         print("  Scraping year: " + url)
         
         self.driver.get(url)
+
+        # While driver.get() waits on a web pages resources to load in, it does not (is not able to) wait on
+        # subsequent JS operatations, as as AJAX calls -- as happen in the loaded pages, where the voting data
+        # is dynamically loaded in
+        
+        # Loosely based on:
+        #  https://stackoverflow.com/questions/26566799/wait-until-page-is-loaded-with-selenium-webdriver-for-python
+        delay = 10
+        # WebDriverWait(self.driver, delay).until(EC.presence_of_element_located((By.ID, 'voting_table')))
+        WebDriverWait(self.driver, delay).until(EC.presence_of_element_located((By.XPATH, "//div[@id='voting_table']/table")))        
+        
         self.soup = BeautifulSoup(self.driver.page_source, features='html.parser')
+
+            
         voting_table = self.soup.find('div', {'id': 'voting_table'})
         if not voting_table:
             return None
-
+               
         # Qualified countries 
         rows = voting_table.findAll('table')[0].find('tbody').findAll('tr')
         contest = self.get_contestants(contest, contest_round, rows)
@@ -280,7 +299,7 @@ class Scraper():
             # Get contestant's page url
             url = 'https://eurovisionworld.com' + contestant.page_url
 
-            print("  Scraping misc:" + url)
+            print("  Scraping misc: " + url)
 
             self.driver.get(url)
             soup = BeautifulSoup(self.driver.page_source, features='html.parser')
