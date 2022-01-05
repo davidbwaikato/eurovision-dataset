@@ -1,15 +1,30 @@
+import argparse
+
 import os
 import subprocess
 import pandas as pd
 import youtube_dl
 
+parser = argparse.ArgumentParser(description='Eurovision Data Audio Downloader')
+parser.add_argument('--start', type=int, default=1956,
+                    help='Start year range of the Eurovision Song Contest')
+parser.add_argument('--end', type=int, default=2021,
+                    help='End year range of the Eurovision Song Contest')
+args = parser.parse_args()
+
+year_range = [y for y in range(args.start, args.end+1)]
+        
 audio_dir = 'audio'
 if not os.path.exists(audio_dir):
     os.makedirs(audio_dir)
 
 contestants = pd.read_csv('contestants.csv')
 for i, r in contestants.iterrows():
-    destination_dir = os.path.join(audio_dir, str(r['year']))
+    year = r['year']
+    if year not in year_range:
+        continue
+    
+    destination_dir = os.path.join(audio_dir, str(year))
     if not os.path.exists(destination_dir):
         os.makedirs(destination_dir)
 
