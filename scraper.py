@@ -122,9 +122,9 @@ class Scraper():
 
             # It looks like the eurovisionworld.com website has made some HTML syntax changes
             #   to their site (based on a comparison of the current pages and those from 2 years ago
-            #   accessed via the WayBack Machine on archive.org
+            #   accessed via the WayBack Machine on archive.org)
             #
-            # There is nolonger a 'voting_grid' id in the HTML for find() to latch on to
+            # There is nolonger a 'voting_grid' id in the HTML for find() to latch onto
             
             # voting_grid = soup.find('div', {'id': 'voting_grid'})
             voting_grid = self.soup.find('table', {'class': 'scoreboard_table'})
