@@ -19,6 +19,8 @@ from votes import Votes
 class Scraper():
 
     def __init__(self):
+        print("Searching for WebDriver module")
+        
         try:
             options = webdriver.ChromeOptions()
             # The following is the original github project code, but as docker image installs
@@ -45,9 +47,10 @@ class Scraper():
             options.add_argument("--disable-gpu");                     # https://stackoverflow.com/questions/51959986/how-to-solve-selenium-chromedriver-timed-out-
             
             self.driver = webdriver.Chrome(chrome_options=options)
+            print('  Found Chrome WebDriver')
             return
         except Exception as e:
-            print('Chrome WebDriver is missing')
+            print('  Did not detect Chrome WebDriver')
             print(e)
             pass
 
@@ -56,19 +59,25 @@ class Scraper():
             options = webdriver.firefox.options.Options()
             options.add_argument('--headless')
             self.driver = webdriver.Firefox(options=options)
+            print('  Found Firefox WebDriver')
             return
         except Exception as e:
-            print('Firefox WebDriver is missing')
+            print('  Did not detect Firefox WebDriver')
             print(e)
             pass
 
         try:
             self.driver = webdriver.Safari()
+            print('  Found Safari WebDriver')
             return
         except:
-            print('Safari is missing')
+            print('  Did not detect Safari WebDriver')
             pass
 
+        print("Failed to find any WebDriver Python modules.  Exiting ...")
+        exit(1)
+        
+              
     def get_sf_num(self, sf):
         if sf == 'semi-final':
             return str(0)
