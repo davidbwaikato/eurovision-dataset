@@ -13,4 +13,4 @@ for f in files:
     print(output_path)
     if not os.path.exists(output_path):
         print('Extracting audio features from {}'.format(f))
-        subprocess.call(['essentia_streaming_extractor_music', f, output_path])
+        subprocess.call(['essentia_streaming_extractor_music', f, output_path, "essentia.profile"])
