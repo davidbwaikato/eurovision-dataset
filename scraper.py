@@ -57,7 +57,26 @@ class Scraper():
         
         try:
             options = webdriver.firefox.options.Options()
-            options.add_argument('--headless')
+            # options.add_argument('--headless')
+
+            # When running this script with Firefox, memory consumption just kept going up
+            # the more pages that were accessed.  On a decent spec'd machine, run with
+            #    --start 1956 --end 2021
+            # the page scrapging ground to a halt part way through the year 2018
+
+
+            # Various posting around on the topic.  Options set below based on the following
+            #   https://stackoverflow.com/questions/55072731/selenium-using-too-much-ram-with-firefox
+            # which is q
+            options.add_argument("start-maximized")
+            options.add_argument("disable-infobars")
+            options.add_argument("--disable-extensions")
+            options.add_argument('--headless')                  # added in, as present in original firefox.option code
+            options.add_argument('--no-sandbox')
+            options.add_argument('--disable-application-cache') # This one seems particuarly imporant.  Worth adding in to Chrome driver above?
+            options.add_argument('--disable-gpu')
+            options.add_argument("--disable-dev-shm-usage")
+            
             self.driver = webdriver.Firefox(options=options)
             print('  Found Firefox WebDriver')
             return
