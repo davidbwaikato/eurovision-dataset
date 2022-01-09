@@ -4,9 +4,17 @@ import os
 from shutil import which
 from glob import glob
 import subprocess
-     
-if which('essentia_streaming_extractor_music') is None:
-    raise FileNotFoundError('Essentia\'s essentia_streaming_extrator_music is not found in PATH')
+
+# Start with name used in Essentia v2.6 and upwards
+streaming_extractor = "essentia_streaming_extractor_music"
+
+if which(streaming_extractor) is None:
+
+    # Try the older executable name
+    streaming_extractor = "streaming_extractor_music"
+
+    if which(streaming_extractor) is None:
+        raise FileNotFoundError('Essentia\'s essentia_streaming_extrator_music or streaming_extractor_music was not found on PATH')
 
 parser = argparse.ArgumentParser(description='Eurovision Data Compute Audio Features')
 parser.add_argument('--start', type=int, default=1956,
@@ -47,4 +55,4 @@ for year in opt_filtered_sorted_years:
         print(output_path)
         if not os.path.exists(output_path):
             print('Extracting audio features from {}'.format(f))
-            subprocess.call(['essentia_streaming_extractor_music', f, output_path, "essentia.profile"])
+            subprocess.call([streaming_extractor, f, output_path, "essentia.profile"])
