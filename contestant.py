@@ -39,5 +39,15 @@ class Contestant():
         # self.composer = composer
         # self.writer = writer
 
+        # From 1957 onwards combining the Country and Year fields are sufficient to provide
+        # a unique identifier for an entrant
+        #
+        # However, in the contest's inaugural year of 1956 each country had two entires
+        #
+        # => To help distinguish between two entries from the same country in the same year
+        #    we add an extra column that derives its value from taking the first three
+        #    (non-space) letters in the song title, converted to be all upper-case
+        self.country_year_disambiguation = None
+
     def __str__(self):
         return '{} ({}) - {} - {}'.format(self.country, self.year, self.performer, self.song)

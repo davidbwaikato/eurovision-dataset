@@ -34,6 +34,7 @@ class Contest():
         for _, c in self.contestants.items():
             l.append([self.year, c.country.code,
                       c.country.name, c.performer, c.song,
+                      c.country_year_disambiguation,
                       cast_int(c.place_contest),
                       cast_int(c.sf_num),
                       cast_int(c.running_final), cast_int(c.running_sf),

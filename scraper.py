@@ -231,7 +231,7 @@ class Scraper():
             # Add country to country dictionary
             country = Country(country_name, country_id)
             contest.countries[country_id] = country
-
+         
             # Add contestant to contestant dictionary
             contestant_key = '{}_{}_{}'.format(contest.year, country.name, artist)
 
@@ -240,6 +240,22 @@ class Scraper():
             else:
                 c = Contestant(contest.year, country, artist, song, page_url)
                 contest.contestants[contestant_key] = c
+
+                # Take the initial letter of the first 3 words in the song title to create
+                # a prefix that (when combined with 'country' and 'year' gives a unique string
+                #
+                # From the inner out:
+                #   split() on space and take just the first 3 [:3] elements
+                #   w[0] to pick out the initial letter of each word, with list comprehension
+                #   "".join() those initial letters together
+                #   upper() the whole string
+                #c.country_year_disambiguation = "".join([w[0] for w in song.split()[:3]]).upper()
+
+                # Remove spaces from song title, take the first 3 chars, then uppercase it
+                c.country_year_disambiguation = song.replace(" ","")[:3].upper()
+                                
+                # print("Song = " + song);
+                # print("country year disambig = " + c.country_year_disambiguation)
 
             if qualified:
                 if contest_round == 'final':
@@ -259,6 +275,8 @@ class Scraper():
             else:
                 c.place_contest = place
 
+
+            
             print("  ", contest.year, c.country.name, contest_round if qualified else f"{contest_round} Non qualified")
         return contest
 
@@ -366,4 +384,5 @@ class Scraper():
                     tmp.append(c.find('b').text)
             contestant.lyricists = tmp
 
+            
         return contest
