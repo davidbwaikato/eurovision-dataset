@@ -7,6 +7,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import TimeoutException
 
+import os
 import re
 import time
 from collections import defaultdict
@@ -18,7 +19,17 @@ from votes import Votes
 
 class Scraper():
 
+    web_wait_delay = 15
+    cache_dir = "cache-eurovisionworld"
+    
     def __init__(self):
+
+        if not os.path.isdir(Scraper.cache_dir):
+            print("Creating cache directory:")
+            print("  " + Scraper.cache_dir)
+            os.mkdir(Scraper.cache_dir)
+            
+        print()
         print("Searching for WebDriver module")
         
         try:
@@ -48,10 +59,11 @@ class Scraper():
             
             self.driver = webdriver.Chrome(chrome_options=options)
             print('  Found Chrome WebDriver')
+            print()
             return
         except Exception as e:
             print('  Did not detect Chrome WebDriver')
-            print(e)
+            print("  " + str(e))
             pass
 
         
@@ -79,21 +91,26 @@ class Scraper():
             
             self.driver = webdriver.Firefox(options=options)
             print('  Found Firefox WebDriver')
+            print()
             return
         except Exception as e:
             print('  Did not detect Firefox WebDriver')
-            print(e)
+            print("  " + str(e))
             pass
 
         try:
             self.driver = webdriver.Safari()
             print('  Found Safari WebDriver')
+            print()
             return
-        except:
+        except Exception as e:
             print('  Did not detect Safari WebDriver')
+            print("  " + str(e))
             pass
 
+        print()
         print("Failed to find any WebDriver Python modules.  Exiting ...")
+        print()
         exit(1)
         
               
@@ -119,12 +136,8 @@ class Scraper():
     def scrape_votes(self, contest, table_data_attrib=None):
         votes_dict = defaultdict(lambda: defaultdict(int))
 
-        time.sleep(3)
-
         # Create the voting table for the contest
         voting_grid = self.soup.find('table', {'class': 'scoreboard_table'})
-        with open("output1.html", "w") as file:
-            file.write(str(self.soup))
 
         if voting_grid is None:
             return votes_dict
@@ -134,7 +147,13 @@ class Scraper():
 
         # Switch to other table for tele/jury voting
         if table_data_attrib:
-            btn = self.driver.find_element_by_xpath('//button[@data-button="{}"]'.format(table_data_attrib))
+
+            xpath_select = '//button[@data-button="{}"]'.format(table_data_attrib)
+            
+            WebDriverWait(self.driver, Scraper.web_wait_delay).until(EC.presence_of_element_located((By.XPATH, xpath_select)))
+
+            # btn = self.driver.find_element_by_xpath('//button[@data-button="{}"]'.format(table_data_attrib))
+            btn = self.driver.find_element_by_xpath(xpath_select)
             btn.send_keys(keys.Keys.SPACE)
 
             soup = BeautifulSoup(self.driver.page_source, features='html.parser')
@@ -282,29 +301,42 @@ class Scraper():
 
     def scrape_year(self, contest, contest_round):
 
-
         if contest_round == 'final':
             url = 'https://eurovisionworld.com/eurovision/{}'.format(contest.year)
+            output_html_filename = f"esc-{contest.year}-final.html";
         else:
             url = 'https://eurovisionworld.com/eurovision/{}/{}'.format(contest.year, contest_round)
+            output_html_filename = f"esc-{contest.year}-{contest_round}.html";
 
-        print("  Scraping year: " + url)
-        
-        self.driver.get(url)
-
-        # While driver.get() waits on a web pages resources to load in, it does not (is not able to) wait on
-        # subsequent JS operatations, as as AJAX calls -- as happen in the loaded pages, where the voting data
-        # is dynamically loaded in
-        
-        # Loosely based on:
-        #  https://stackoverflow.com/questions/26566799/wait-until-page-is-loaded-with-selenium-webdriver-for-python
-        delay = 10
-        # WebDriverWait(self.driver, delay).until(EC.presence_of_element_located((By.ID, 'voting_table')))
-        WebDriverWait(self.driver, delay).until(EC.presence_of_element_located((By.XPATH, "//div[@id='voting_table']/table")))        
-        
-        self.soup = BeautifulSoup(self.driver.page_source, features='html.parser')
-
+        full_output_html_filename = os.path.join(Scraper.cache_dir,output_html_filename)
             
+        print("  Scraping year: " + url)
+
+        if os.path.exists(full_output_html_filename) and (os.path.getsize(full_output_html_filename) > 0):
+            print("  Loading in deteted cached version")
+            with open(full_output_html_filename, "r") as file:
+                cached_page_source = file.read() # .decode("utf-8")
+            self.soup = BeautifulSoup(cached_page_source, features='html.parser')
+        else:
+            self.driver.get(url)
+
+            # While driver.get() waits on a web pages resources to load in, it does not (is not able to) wait on
+            # subsequent JS operatations, as as AJAX calls -- as happen in the loaded pages, where the voting data
+            # is dynamically loaded in
+        
+            # Loosely based on:
+            #   https://stackoverflow.com/questions/26566799/wait-until-page-is-loaded-with-selenium-webdriver-for-python
+            WebDriverWait(self.driver, Scraper.web_wait_delay).until(EC.presence_of_element_located((By.XPATH, "//div[@id='voting_table']/table")))        
+
+            WebDriverWait(self.driver, Scraper.web_wait_delay).until(EC.presence_of_element_located((By.XPATH, "//table[@class='scoreboard_table']")))
+        
+            self.soup = BeautifulSoup(self.driver.page_source, features='html.parser')
+
+            # write it out into the cache dir
+            with open(full_output_html_filename, "w") as file:
+                file.write(str(self.soup))
+
+                
         voting_table = self.soup.find('div', {'id': 'voting_table'})
         if not voting_table:
             return None
@@ -345,11 +377,28 @@ class Scraper():
             # Get contestant's page url
             url = 'https://eurovisionworld.com' + contestant.page_url
 
+            (year,country) = contestant.page_url.split(os.sep)[-2:] # get last two entries            
+            output_html_filename = f"esc-{year}-{country}.html";
+            full_output_html_filename = os.path.join(Scraper.cache_dir,output_html_filename)
+                    
             print("  Scraping misc: " + url)
 
-            self.driver.get(url)
-            soup = BeautifulSoup(self.driver.page_source, features='html.parser')
-
+            if os.path.exists(full_output_html_filename) and (os.path.getsize(full_output_html_filename) > 0):
+                print("  Loading in deteted cached version")
+                with open(full_output_html_filename, "r") as file:
+                    cached_page_source = file.read() # .decode("utf-8")
+                soup = BeautifulSoup(cached_page_source, features='html.parser')
+            else:            
+                self.driver.get(url)
+                
+                WebDriverWait(self.driver, Scraper.web_wait_delay).until(EC.presence_of_element_located((By.XPATH, "//div[contains(@class,'lyrics_div')]//p")))
+                
+                soup = BeautifulSoup(self.driver.page_source, features='html.parser')
+                
+                # write it out into the cache dir
+                with open(full_output_html_filename, "w") as file:
+                    file.write(str(soup))
+                
             # Get lyrics
             lyrics = soup.find('div', class_='lyrics_div').findAll('p')
             lyrics = '\\n\\n'.join([p.get_text(separator='\\n') for p in lyrics])
