@@ -59,7 +59,7 @@ for y in sorted_years:
      
 for year in opt_filtered_sorted_years:
     print("  " + year)
-    
+
     mp3_files = glob.glob(u'audio/'+str(year)+'/*.mp3')
 
     prev_time_msecs = None
@@ -67,6 +67,7 @@ for year in opt_filtered_sorted_years:
     for mp3_filename in mp3_files:
         src_json_filename = mp3_filename.replace(".mp3",".json")
         dst_json_filename = src_json_filename.replace(".json","-musicbrainz.json")
+        dst_nomatch_filename = src_json_filename.replace(".json",".no-match")
 
         match = re.search(r"^audio/(\d{4})/([^_]+)_([^_]+)_([^_]+)\.json$",src_json_filename)
           
@@ -75,8 +76,12 @@ for year in opt_filtered_sorted_years:
             country = match.group(2)
             title   = match.group(3) # unused
             artist  = match.group(4) # unused
-        
-        if not os.path.exists(dst_json_filename):
+
+        if os.path.exists(dst_nomatch_filename):
+            print(f"No-match file detected from previous run {dst_nomatch_filename}")
+            print( "=> Skipping")
+
+        elif not os.path.exists(dst_json_filename):
             print(f"Querying for AcousticBrainz ID match on chromaprint fingerprint: {src_json_filename}");
 
             fin = open(src_json_filename)
@@ -89,11 +94,12 @@ for year in opt_filtered_sorted_years:
             #####
             # ****** Change the entry in acousticid_clientid.txt to your actual client-id
             #####
-            acousticid_get_args = [f"client={aid_clientid}","meta=releasegroup",
-                                   f"duration={chromaprint_intdur}",f"fingerprint={chromaprint}"];
+            acousticid_data = { "client"     : f"{aid_clientid}",
+                                "meta"       : "recordings",
+                                "duration"   : f"{chromaprint_intdur}",
+                                "fingerprint": f"{chromaprint}" };
 
-            acousticid_url = "https://api.acoustid.org/v2/lookup?" + "&".join(acousticid_get_args)
-
+            acousticid_url = "https://api.acoustid.org/v2/lookup"
 
 
             curr_time_msecs = time.time_ns() // 1_000_000
@@ -107,8 +113,8 @@ for year in opt_filtered_sorted_years:
                 print("Inserting throtling delay: %.3f seconds" % sleep_secs)
                 time.sleep(sleep_secs)
             
-            response = requests.get(acousticid_url);
-
+            response = requests.post(acousticid_url, acousticid_data);
+            
             # Made an API call, so update timing info
             prev_time_msecs = curr_time_msecs
 
@@ -121,11 +127,21 @@ for year in opt_filtered_sorted_years:
                     id=r["id"]
                     break
 
-            if id is not None:
+            if id is None:
+                # Create stub file that represents no-match was found
+                # File has easily identifiable filename extension so easy to delete at the command-line
+                
+                fout = open(dst_nomatch_filename,"w")
+                fout.write("no match")
+                fout.close()
+                
+            else:
                 score = r["score"]
                 print(f"Found id = {id} with confidence score of {score}")
 
-
+                # debug
+                print(repr(r))
+                
                 # metadata.json format
                 # {
                 #    "DirectoryMetadata": [
@@ -149,19 +165,35 @@ for year in opt_filtered_sorted_years:
                 #    ]
                 # }
 
-                filename_re = f"{country}{year}\\.nul"
-                metadata_id    = { "name" : "musicbrainz.id", "content": id }
-                metadata_score = { "score": "musicbrainz.id", "content": score }
+                metadata_aid       = { "name" : "acousticid.id",    "content": id }
+                metadata_aid_score = { "score": "acousticid.score", "content": score }
+
+                gs_metadata_array = [ metadata_aid, metadata_aid_score ]
+
+                # Top up with musicbrainz artist-id(s) and title if presents
+                if r.get("recordings"):
+                    recordings = r["recordings"][0]
+                    if recordings.get("artists"):
+                        artist_id = recordings["artists"][0]["id"]
+                        gs_metadata_array.append( { "name": "musicbrainz.artist_id", "content": artist_id})
+                        
+                    title_id = recordings["id"]
+                    gs_metadata_array.append( { "name": "musicbrainz.title_id", "content": title_id})
+
+                                       
+                filename_re        = f"{country}{year}\\.nul"
                 
                 metadata_json = {}
                 metadata_json["DirectoryMetadata"] = [ {
-                    "FileSet": { "FileName": filename_re },
-                    "Description" : { "Metadata" : [ metadata_id, metadata_score ] }
+                    "FileSet": [
+                        { "FileName": filename_re },
+                        { "Description" : { "Metadata" : gs_metadata_array } }
+                    ]
                 } ]
+                
                 
                 fout = open(dst_json_filename,"w")
                 json.dump(metadata_json,fout)
-                # print("**** = " + repr(metadata_json))
                 fout.close()
                 
             
